@@ -48,7 +48,7 @@ pi
 
 | Provider | Environment Variable | `auth.json` key |
 |----------|----------------------|------------------|
-| Anthropic | `ANTHROPIC_API_KEY` | `anthropic` |
+| Anthropic | `ANTHROPIC_API_KEY`, `ANTHROPIC_OAUTH_TOKEN`, or `ANTHROPIC_AUTH_TOKEN` | `anthropic` |
 | Ant Ling | `ANT_LING_API_KEY` | `ant-ling` |
 | Azure OpenAI Responses | `AZURE_OPENAI_API_KEY` | `azure-openai-responses` |
 | OpenAI | `OPENAI_API_KEY` | `openai` |
@@ -121,6 +121,39 @@ API key credentials can also include provider-scoped environment values. These v
 ```
 
 Use this when pi should use different provider settings than the project shell environment.
+
+For the built-in Anthropic provider with a corporate gateway that expects bearer auth, put the gateway token and base URL in the Anthropic credential's `env` object, then reference the token from `key`:
+
+```json
+{
+  "anthropic": {
+    "type": "api_key",
+    "key": "$ANTHROPIC_AUTH_TOKEN",
+    "env": {
+      "ANTHROPIC_AUTH_TOKEN": "ada_test",
+      "ANTHROPIC_BASE_URL": "http://my.company.com/coding-plan"
+    }
+  }
+}
+```
+
+This sends `Authorization: Bearer ada_test` and uses `http://my.company.com/coding-plan` for built-in Anthropic requests.
+
+For custom Anthropic Messages-compatible providers, use the custom provider name as the `auth.json` key and put the endpoint in `models.json`:
+
+```json
+{
+  "anthropic-proxy": {
+    "type": "api_key",
+    "key": "$ANTHROPIC_AUTH_TOKEN",
+    "env": {
+      "ANTHROPIC_AUTH_TOKEN": "ada_test"
+    }
+  }
+}
+```
+
+The scoped `env` values apply only to the credential they are stored under, so an `ANTHROPIC_AUTH_TOKEN` stored under `anthropic` does not affect other Anthropic-compatible providers such as Xiaomi or Cloudflare AI Gateway.
 
 ### Key Resolution
 

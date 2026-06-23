@@ -14,6 +14,7 @@
 
 ### Fixed
 
+- Fixed inherited Anthropic `ANTHROPIC_AUTH_TOKEN` bearer auth and `ANTHROPIC_BASE_URL` support from auth/environment configuration ([#5871](https://github.com/earendil-works/pi/issues/5871)).
 - Fixed `pi --resume` to load user package themes and resolve automatic light/dark theme settings.
 
 ## [0.79.10] - 2026-06-22

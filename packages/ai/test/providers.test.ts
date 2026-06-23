@@ -40,9 +40,13 @@ describe("builtin providers", () => {
 		}
 	});
 
-	it("resolves anthropic auth from env with OAuth token precedence", async () => {
+	it("resolves anthropic auth from env with existing precedence", async () => {
 		const models = createModels({
-			authContext: fakeAuthContext({ ANTHROPIC_API_KEY: "key", ANTHROPIC_OAUTH_TOKEN: "oauth-token" }),
+			authContext: fakeAuthContext({
+				ANTHROPIC_API_KEY: "key",
+				ANTHROPIC_OAUTH_TOKEN: "oauth-token",
+				ANTHROPIC_AUTH_TOKEN: "auth-token",
+			}),
 		});
 		models.setProvider(anthropicProvider());
 		const model = models.getModel("anthropic", "claude-haiku-4-5")!;
@@ -50,6 +54,20 @@ describe("builtin providers", () => {
 		const result = await models.getAuth(model);
 		expect(result?.auth.apiKey).toBe("oauth-token");
 		expect(result?.source).toBe("ANTHROPIC_OAUTH_TOKEN");
+
+		const apiKeyModels = createModels({
+			authContext: fakeAuthContext({ ANTHROPIC_API_KEY: "key", ANTHROPIC_AUTH_TOKEN: "auth-token" }),
+		});
+		apiKeyModels.setProvider(anthropicProvider());
+		expect((await apiKeyModels.getAuth(model))?.source).toBe("ANTHROPIC_API_KEY");
+
+		const authTokenModels = createModels({
+			authContext: fakeAuthContext({ ANTHROPIC_AUTH_TOKEN: "auth-token" }),
+		});
+		authTokenModels.setProvider(anthropicProvider());
+		const authTokenResult = await authTokenModels.getAuth(model);
+		expect(authTokenResult?.auth.apiKey).toBe("auth-token");
+		expect(authTokenResult?.source).toBe("ANTHROPIC_AUTH_TOKEN");
 	});
 
 	it("reports bedrock as configured from ambient AWS credentials without an api key", async () => {

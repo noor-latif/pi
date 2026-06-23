@@ -10,8 +10,12 @@ export function anthropicProvider(): Provider<"anthropic-messages"> {
 		name: "Anthropic",
 		baseUrl: "https://api.anthropic.com",
 		auth: {
-			// ANTHROPIC_OAUTH_TOKEN takes precedence over ANTHROPIC_API_KEY
-			apiKey: envApiKeyAuth("Anthropic API key", ["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"]),
+			// ANTHROPIC_OAUTH_TOKEN takes precedence over ANTHROPIC_API_KEY, then ANTHROPIC_AUTH_TOKEN.
+			apiKey: envApiKeyAuth("Anthropic API key", [
+				"ANTHROPIC_OAUTH_TOKEN",
+				"ANTHROPIC_API_KEY",
+				"ANTHROPIC_AUTH_TOKEN",
+			]),
 			oauth: lazyOAuth({ name: "Anthropic (Claude Pro/Max)", load: loadAnthropicOAuth }),
 		},
 		models: Object.values(ANTHROPIC_MODELS),

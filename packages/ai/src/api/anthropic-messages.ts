@@ -790,6 +790,29 @@ function isOAuthToken(apiKey: string): boolean {
 	return apiKey.includes("sk-ant-oat");
 }
 
+function resolveAnthropicBaseUrl(model: Model<"anthropic-messages">, env?: ProviderEnv): string {
+	if (model.provider !== "anthropic") return model.baseUrl;
+	return getProviderEnvValue("ANTHROPIC_BASE_URL", env) ?? model.baseUrl;
+}
+
+function isAnthropicBearerToken(model: Model<"anthropic-messages">, apiKey: string, env?: ProviderEnv): boolean {
+	if (isOAuthToken(apiKey)) return true;
+
+	// Provider-scoped auth.json env forces bearer auth for the current provider only.
+	if (env?.ANTHROPIC_AUTH_TOKEN && apiKey === env.ANTHROPIC_AUTH_TOKEN) return true;
+
+	if (model.provider !== "anthropic") return false;
+
+	const oauthToken = getProviderEnvValue("ANTHROPIC_OAUTH_TOKEN", env);
+	if (oauthToken && apiKey === oauthToken) return true;
+
+	const authToken = getProviderEnvValue("ANTHROPIC_AUTH_TOKEN", env);
+	if (!authToken || apiKey !== authToken) return false;
+
+	// ANTHROPIC_API_KEY takes precedence over ambient (process) ANTHROPIC_AUTH_TOKEN.
+	return getProviderEnvValue("ANTHROPIC_API_KEY", env) !== apiKey;
+}
+
 function createClient(
 	model: Model<"anthropic-messages">,
 	apiKey: string,
@@ -855,12 +878,12 @@ function createClient(
 		return { client, isOAuthToken: false };
 	}
 
-	// OAuth: Bearer auth, Claude Code identity headers
-	if (isOAuthToken(apiKey)) {
+	// OAuth/Bearer auth, Claude Code identity headers
+	if (isAnthropicBearerToken(model, apiKey, env)) {
 		const client = new Anthropic({
 			apiKey: null,
 			authToken: apiKey,
-			baseURL: model.baseUrl,
+			baseURL: resolveAnthropicBaseUrl(model, env),
 			dangerouslyAllowBrowser: true,
 			defaultHeaders: mergeHeaders(
 				{
@@ -884,7 +907,7 @@ function createClient(
 	const client = new Anthropic({
 		apiKey,
 		authToken: null,
-		baseURL: model.baseUrl,
+		baseURL: resolveAnthropicBaseUrl(model, env),
 		dangerouslyAllowBrowser: true,
 		defaultHeaders: mergeHeaders(
 			{
