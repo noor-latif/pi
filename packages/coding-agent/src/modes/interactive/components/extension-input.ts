@@ -11,6 +11,7 @@ import { keyHint } from "./keybinding-hints.ts";
 export interface ExtensionInputOptions {
 	tui?: TUI;
 	timeout?: number;
+	maxHeight?: (width: number) => number;
 }
 
 export class ExtensionInputComponent extends Container implements Focusable {
@@ -20,6 +21,7 @@ export class ExtensionInputComponent extends Container implements Focusable {
 	private titleText: Text;
 	private baseTitle: string;
 	private countdown: CountdownTimer | undefined;
+	private maxHeight: ((width: number) => number) | undefined;
 
 	// Focusable implementation - propagate to input for IME cursor positioning
 	private _focused = false;
@@ -42,6 +44,7 @@ export class ExtensionInputComponent extends Container implements Focusable {
 
 		this.onSubmitCallback = onSubmit;
 		this.onCancelCallback = onCancel;
+		this.maxHeight = opts?.maxHeight;
 		this.baseTitle = title;
 
 		this.addChild(new DynamicBorder());
@@ -68,6 +71,36 @@ export class ExtensionInputComponent extends Container implements Focusable {
 		);
 		this.addChild(new Spacer(1));
 		this.addChild(new DynamicBorder());
+	}
+
+	override render(width: number): string[] {
+		// Preserve the original Container rendering unless the dialog would exceed
+		// the terminal-height budget provided by InteractiveMode.
+		const lines = super.render(width);
+		const maxHeight = this.maxHeight?.(width);
+		if (maxHeight === undefined || lines.length <= maxHeight) return lines;
+
+		// When clipping, rebuild the dialog semantically: clip the title/prompt but
+		// always keep the input row and key hints visible.
+		const border = new DynamicBorder().render(width)[0]!;
+		const inputLines = this.input.render(width);
+		const hint = new Text(
+			`${keyHint("tui.select.confirm", "submit")}  ${keyHint("tui.select.cancel", "cancel")}`,
+			1,
+			0,
+		).render(width);
+
+		// Give all remaining rows to the title/prompt and mark when it is clipped.
+		const fixedRows = 2 + inputLines.length + hint.length;
+		const titleRows = Math.max(0, Math.floor(maxHeight) - fixedRows);
+		const titleLines = this.titleText.render(width);
+		const clippedIndicator = new Text(theme.fg("muted", "[increase terminal height to see full input text]"), 1, 0).render(width)[0];
+		const clippedTitle =
+			titleLines.length > titleRows && titleRows > 1 && clippedIndicator
+				? [...titleLines.slice(0, titleRows - 1), clippedIndicator]
+				: titleLines.slice(0, titleRows);
+
+		return [border, ...clippedTitle, ...inputLines, ...hint, border].slice(0, Math.max(1, Math.floor(maxHeight)));
 	}
 
 	handleInput(keyData: string): void {

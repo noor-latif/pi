@@ -349,6 +349,7 @@ export class InteractiveMode {
 	private extensionSelector: ExtensionSelectorComponent | undefined = undefined;
 	private extensionInput: ExtensionInputComponent | undefined = undefined;
 	private extensionEditor: ExtensionEditorComponent | undefined = undefined;
+	private extensionDialogHiddenChrome: Component[] = [];
 	private extensionTerminalInputUnsubscribers = new Set<() => void>();
 
 	// Extension widgets (components rendered above/below the editor)
@@ -2079,6 +2080,34 @@ export class InteractiveMode {
 		};
 	}
 
+	private getExtensionDialogMaxHeight(width: number): number {
+		let reservedRows = 0;
+		for (const child of this.ui.children) {
+			if (child !== this.editorContainer) reservedRows += child.render(width).length;
+		}
+		return Math.max(1, this.ui.terminal.rows - reservedRows);
+	}
+
+	private setExtensionDialogChromeHidden(hidden: boolean): void {
+		if (hidden) {
+			if (this.extensionDialogHiddenChrome.length > 0) return;
+			this.extensionDialogHiddenChrome = [
+				this.headerContainer,
+				this.chatContainer,
+				this.pendingMessagesContainer,
+				this.statusContainer,
+				this.widgetContainerAbove,
+			].filter((component) => this.ui.children.includes(component));
+			for (const component of this.extensionDialogHiddenChrome) this.ui.removeChild(component);
+			return;
+		}
+
+		for (let i = this.extensionDialogHiddenChrome.length - 1; i >= 0; i--) {
+			this.ui.children.unshift(this.extensionDialogHiddenChrome[i]!);
+		}
+		this.extensionDialogHiddenChrome = [];
+	}
+
 	/**
 	 * Show a selector for extensions.
 	 */
@@ -2099,6 +2128,8 @@ export class InteractiveMode {
 			};
 			opts?.signal?.addEventListener("abort", onAbort, { once: true });
 
+			this.setExtensionDialogChromeHidden(true);
+
 			this.extensionSelector = new ExtensionSelectorComponent(
 				title,
 				options,
@@ -2112,7 +2143,12 @@ export class InteractiveMode {
 					this.hideExtensionSelector();
 					resolve(undefined);
 				},
-				{ tui: this.ui, timeout: opts?.timeout, onToggleToolsExpanded: () => this.toggleToolOutputExpansion() },
+				{
+					tui: this.ui,
+					timeout: opts?.timeout,
+					onToggleToolsExpanded: () => this.toggleToolOutputExpansion(),
+					maxHeight: (width) => this.getExtensionDialogMaxHeight(width),
+				},
 			);
 
 			this.editorContainer.clear();
@@ -2127,6 +2163,7 @@ export class InteractiveMode {
 	 */
 	private hideExtensionSelector(): void {
 		this.extensionSelector?.dispose();
+		this.setExtensionDialogChromeHidden(false);
 		this.editorContainer.clear();
 		this.editorContainer.addChild(this.editor);
 		this.extensionSelector = undefined;
@@ -2174,6 +2211,8 @@ export class InteractiveMode {
 			};
 			opts?.signal?.addEventListener("abort", onAbort, { once: true });
 
+			this.setExtensionDialogChromeHidden(true);
+
 			this.extensionInput = new ExtensionInputComponent(
 				title,
 				placeholder,
@@ -2187,7 +2226,7 @@ export class InteractiveMode {
 					this.hideExtensionInput();
 					resolve(undefined);
 				},
-				{ tui: this.ui, timeout: opts?.timeout },
+				{ tui: this.ui, timeout: opts?.timeout, maxHeight: (width) => this.getExtensionDialogMaxHeight(width) },
 			);
 
 			this.editorContainer.clear();
@@ -2202,6 +2241,7 @@ export class InteractiveMode {
 	 */
 	private hideExtensionInput(): void {
 		this.extensionInput?.dispose();
+		this.setExtensionDialogChromeHidden(false);
 		this.editorContainer.clear();
 		this.editorContainer.addChild(this.editor);
 		this.extensionInput = undefined;
