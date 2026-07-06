@@ -99,7 +99,7 @@ function isSelectableCopilotModel(item: Record<string, unknown>): boolean {
 	const policy = asRecord(item.policy);
 	const capabilities = asRecord(item.capabilities);
 	const supports = asRecord(capabilities?.supports);
-	return item.model_picker_enabled === true && policy?.state !== "disabled" && supports?.tool_calls !== false;
+	return policy?.state !== "disabled" && supports?.tool_calls !== false;
 }
 
 function parseAvailableCopilotModelIds(raw: unknown): string[] {

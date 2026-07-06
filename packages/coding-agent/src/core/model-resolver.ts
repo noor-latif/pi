@@ -22,7 +22,7 @@ export const defaultModelPerProvider: Record<KnownProvider, string> = {
 	deepseek: "deepseek-v4-pro",
 	google: "gemini-3.1-pro-preview",
 	"google-vertex": "gemini-3.1-pro-preview",
-	"github-copilot": "gpt-5.4",
+	"github-copilot": "auto",
 	openrouter: "moonshotai/kimi-k2.6",
 	"vercel-ai-gateway": "zai/glm-5.1",
 	xai: "grok-4.20-0309-reasoning",
@@ -326,6 +326,16 @@ export interface ResolveCliModelResult {
 	error: string | undefined;
 }
 
+const COPILOT_AUTO_MODEL_PREFERENCE = ["gpt-4.1", "gpt-5.4-mini", "gpt-5-mini", "claude-haiku-4.5"] as const;
+
+function chooseCopilotAutoModel(models: Model<Api>[]): Model<Api> | undefined {
+	for (const preferredId of COPILOT_AUTO_MODEL_PREFERENCE) {
+		const preferred = models.find((model) => model.id === preferredId);
+		if (preferred) return preferred;
+	}
+	return models[0];
+}
+
 /**
  * Resolve a single model from CLI flags.
  *
@@ -417,6 +427,14 @@ export function resolveCliModel(options: {
 	}
 
 	const candidates = provider ? availableModels.filter((m) => m.provider === provider) : availableModels;
+
+	if (provider === "github-copilot" && pattern.toLowerCase() === "auto") {
+		const selected = chooseCopilotAutoModel(candidates);
+		if (selected) {
+			return { model: selected, warning: undefined, thinkingLevel: undefined, error: undefined };
+		}
+	}
+
 	const { model, thinkingLevel, warning } = parseModelPattern(pattern, candidates, {
 		allowInvalidThinkingLevelFallback: false,
 	});
@@ -575,6 +593,18 @@ export async function findInitialModel(options: {
 
 	// 3. Try saved default from settings
 	if (defaultProvider && defaultModelId) {
+		if (defaultProvider === "github-copilot" && defaultModelId === "auto") {
+			const availableModels = await modelRegistry.getAvailable();
+			const copilotModels = availableModels.filter((m) => m.provider === "github-copilot");
+			const selected = chooseCopilotAutoModel(copilotModels);
+			if (selected) {
+				if (defaultThinkingLevel) {
+					thinkingLevel = defaultThinkingLevel;
+				}
+				return { model: selected, thinkingLevel, fallbackMessage: undefined };
+			}
+		}
+
 		const found = modelRegistry.find(defaultProvider, defaultModelId);
 		if (found) {
 			model = found;

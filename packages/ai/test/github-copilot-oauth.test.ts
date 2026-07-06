@@ -34,7 +34,7 @@ describe("GitHub Copilot OAuth device flow", () => {
 		vi.useRealTimers();
 	});
 
-	it("filters models to the authenticated account picker catalog", async () => {
+	it("filters models to the authenticated account catalog", async () => {
 		const fetchMock = vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
 			const url = getUrl(input);
 
@@ -53,18 +53,15 @@ describe("GitHub Copilot OAuth device flow", () => {
 					data: [
 						{
 							id: "gpt-4.1",
-							model_picker_enabled: true,
 							capabilities: { supports: { tool_calls: true } },
 						},
 						{
 							id: "claude-opus-4.7",
-							model_picker_enabled: true,
 							policy: { state: "disabled" },
 							capabilities: { supports: { tool_calls: true } },
 						},
 						{
 							id: "gpt-5.4-nano",
-							model_picker_enabled: false,
 							capabilities: { supports: { tool_calls: true } },
 						},
 					],
@@ -77,12 +74,12 @@ describe("GitHub Copilot OAuth device flow", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		const credentials = await refreshGitHubCopilotToken("ghu_refresh_token");
-		expect(credentials.availableModelIds).toEqual(["gpt-4.1"]);
+		expect(credentials.availableModelIds).toEqual(["gpt-4.1", "gpt-5.4-nano"]);
 
 		const modifiedModels = githubCopilotOAuthProvider.modifyModels?.(getModels("github-copilot"), credentials) ?? [];
-		expect(modifiedModels.filter((model) => model.provider === "github-copilot").map((model) => model.id)).toEqual([
-			"gpt-4.1",
-		]);
+		expect(modifiedModels.filter((model) => model.provider === "github-copilot").map((model) => model.id)).toEqual(
+			expect.arrayContaining(["gpt-4.1", "gpt-5.4-nano"]),
+		);
 	});
 
 	it("reports device-code details through onDeviceCode", async () => {

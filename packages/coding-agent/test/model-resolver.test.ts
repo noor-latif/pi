@@ -65,6 +65,21 @@ const mockOpenRouterModels: Model<"anthropic-messages">[] = [
 
 const allModels = [...mockModels, ...mockOpenRouterModels];
 
+function buildCopilotResponsesModel(id: string, name: string): Model<"openai-responses"> {
+	return {
+		id,
+		name,
+		api: "openai-responses",
+		provider: "github-copilot",
+		baseUrl: "https://api.individual.githubcopilot.com",
+		reasoning: true,
+		input: ["text", "image"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 200000,
+		maxTokens: 64000,
+	};
+}
+
 describe("parseModelPattern", () => {
 	describe("simple patterns without colons", () => {
 		test("exact match returns model with undefined thinking level", () => {
@@ -532,6 +547,26 @@ describe("resolveCliModel", () => {
 			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8:high");
 			expect(result.thinkingLevel).toBeUndefined();
 		});
+
+		test("github-copilot auto resolves to a concrete available model", () => {
+			const copilotModels: Model<"openai-responses">[] = [
+				buildCopilotResponsesModel("gpt-4.1", "GPT-4.1"),
+				buildCopilotResponsesModel("gpt-5.4-mini", "GPT-5.4 Mini"),
+			];
+			const registry = {
+				getAll: () => copilotModels,
+			} as unknown as Parameters<typeof resolveCliModel>[0]["modelRegistry"];
+
+			const result = resolveCliModel({
+				cliProvider: "github-copilot",
+				cliModel: "auto",
+				modelRegistry: registry,
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.model?.provider).toBe("github-copilot");
+			expect(result.model?.id).toBe("gpt-4.1");
+		});
 	});
 });
 
@@ -539,6 +574,10 @@ describe("default model selection", () => {
 	test("openai defaults track current models", () => {
 		expect(defaultModelPerProvider.openai).toBe("gpt-5.5");
 		expect(defaultModelPerProvider["openai-codex"]).toBe("gpt-5.5");
+	});
+
+	test("github-copilot defaults to auto", () => {
+		expect(defaultModelPerProvider["github-copilot"]).toBe("auto");
 	});
 
 	test("zai, minimax, cerebras, and ant-ling defaults track current models", () => {
@@ -568,6 +607,24 @@ describe("default model selection", () => {
 
 		expect(result.model?.provider).toBe("openrouter");
 		expect(result.model?.id).toBe("openai/ghost-model");
+	});
+
+	test("findInitialModel resolves github-copilot auto default to available model", async () => {
+		const copilotModel = buildCopilotResponsesModel("gpt-5.4-mini", "GPT-5.4 Mini");
+		const registry = {
+			getAvailable: async () => [copilotModel],
+		} as unknown as Parameters<typeof findInitialModel>[0]["modelRegistry"];
+
+		const result = await findInitialModel({
+			scopedModels: [],
+			isContinuing: false,
+			defaultProvider: "github-copilot",
+			defaultModelId: "auto",
+			modelRegistry: registry,
+		});
+
+		expect(result.model?.provider).toBe("github-copilot");
+		expect(result.model?.id).toBe("gpt-5.4-mini");
 	});
 
 	test("findInitialModel selects ai-gateway default when available", async () => {

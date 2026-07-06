@@ -33,6 +33,7 @@ Anthropic subscription auth is active for Claude Pro/Max accounts. Third-party h
 ### GitHub Copilot
 
 - Press Enter for github.com, or enter your GitHub Enterprise Server domain
+- Pi supports `auto` for GitHub Copilot by selecting an eligible account model automatically.
 - If you get "model not supported", enable it in VS Code: Copilot Chat → model selector → select model → "Enable"
 
 ## API Keys
