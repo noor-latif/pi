@@ -170,8 +170,9 @@ const INTERLEAVED_THINKING_BETA = "interleaved-thinking-2025-05-14";
 function getAnthropicCompat(
 	model: Model<"anthropic-messages">,
 ): Required<Omit<AnthropicMessagesCompat, "forceAdaptiveThinking">> {
+	const isCopilot = model.provider === "github-copilot";
 	return {
-		supportsEagerToolInputStreaming: model.compat?.supportsEagerToolInputStreaming ?? true,
+		supportsEagerToolInputStreaming: model.compat?.supportsEagerToolInputStreaming ?? !isCopilot,
 		supportsLongCacheRetention: model.compat?.supportsLongCacheRetention ?? true,
 		sendSessionAffinityHeaders: model.compat?.sendSessionAffinityHeaders ?? false,
 		supportsCacheControlOnTools: model.compat?.supportsCacheControlOnTools ?? true,
